@@ -282,7 +282,7 @@ public class CredentialClient {
     /**
      * Extracts the result of a hint retrieve request from the intent data returned by a provider.
      */
-    @Nullable
+    @NonNull
     public HintRetrieveResult getHintRetrieveResult(Intent resultData) {
         if (resultData == null) {
             Log.i(LOG_TAG, "resultData is null, returning default response");
@@ -358,7 +358,7 @@ public class CredentialClient {
                 .build();
     }
 
-    @Nullable
+    @NonNull
     private static HintRetrieveResult createDefaultHintRetrieveResult() {
         return HintRetrieveResult.UNKNOWN;
     }

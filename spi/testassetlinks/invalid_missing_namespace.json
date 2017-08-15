@@ -1,0 +1,8 @@
+[
+  {
+    "relation": ["delegate_permission/common.get_login_creds"],
+    "target": {
+      "site": "https://www.example.com"
+    }
+  }
+]

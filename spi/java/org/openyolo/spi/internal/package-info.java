@@ -13,6 +13,8 @@
  */
 
 /**
- * Helper classes for loading Digital Asset Link statements and checking relationships.
+ * Collection of internal data types and utility classes that are used by the OpenYOLO SPI.
+ * _NOTE_: The contents of this package are _not_ part of the public API, and may change at any
+ * time.
  */
-package org.openyolo.spi.assetlinks.loader;
+package org.openyolo.spi.internal;

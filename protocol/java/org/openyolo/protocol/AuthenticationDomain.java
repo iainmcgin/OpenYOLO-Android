@@ -220,6 +220,19 @@ public final class AuthenticationDomain implements Comparable<AuthenticationDoma
     }
 
     /**
+     * Retrieves the Android app public signing key fingerprint. If the authentication
+     * domain does not represent an Android application, an {@link IllegalStateException} will
+     * be thrown.
+     */
+    public String getAndroidFingerprint() {
+        if (!isAndroidAuthDomain()) {
+            throw new IllegalStateException("Authentication domain is not an Android domain");
+        }
+
+        return getParsedUri().getUserInfo();
+    }
+
+    /**
      * Creates a protocol buffer representation of the authentication domain, for transmission
      * or storage.
      */

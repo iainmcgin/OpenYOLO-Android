@@ -12,7 +12,14 @@
  * limitations under the License.
  */
 
+package org.openyolo.spi.internal;
+
 /**
- * Helper classes for loading Digital Asset Link statements and checking relationships.
+ * Simple abstraction for deriving time; primarily for testing.
  */
-package org.openyolo.spi.assetlinks.loader;
+public interface Clock {
+    /**
+     * Provides the current time since the UNIX epoch, in milliseconds.
+     */
+    long getCurrentTime();
+}

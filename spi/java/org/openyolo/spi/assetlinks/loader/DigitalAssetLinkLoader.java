@@ -12,7 +12,23 @@
  * limitations under the License.
  */
 
-/**
- * Helper classes for loading Digital Asset Link statements and checking relationships.
- */
 package org.openyolo.spi.assetlinks.loader;
+
+import java.io.IOException;
+import java.util.Set;
+
+import org.openyolo.protocol.AuthenticationDomain;
+
+public interface DigitalAssetLinkLoader {
+
+    /**
+     * Extracts a set of related authentication domains from the provided JSON, of the specified
+     * relation type.
+     *
+     * @throws IOException if the relations could not be determined.
+     */
+    Set<AuthenticationDomain> getRelations(
+            String relationType,
+            AuthenticationDomain domain)
+            throws IOException;
+}

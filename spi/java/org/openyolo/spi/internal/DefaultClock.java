@@ -12,7 +12,25 @@
  * limitations under the License.
  */
 
+package org.openyolo.spi.internal;
+
 /**
- * Helper classes for loading Digital Asset Link statements and checking relationships.
+ * Default implementation of {@link Clock}, using the system time.
  */
-package org.openyolo.spi.assetlinks.loader;
+public class DefaultClock implements Clock {
+
+    /**
+     * Singleton instance of {@link DefaultClock}.
+     */
+    public static final DefaultClock INSTANCE = new DefaultClock();
+
+    private DefaultClock() {}
+
+    /**
+     * Provides the system time.
+     */
+    @Override
+    public long getCurrentTime() {
+        return System.currentTimeMillis();
+    }
+}

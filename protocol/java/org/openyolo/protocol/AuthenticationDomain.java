@@ -32,6 +32,9 @@ import android.util.Log;
 import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 
 /**
@@ -43,7 +46,7 @@ import java.security.NoSuchAlgorithmException;
  *
  * <p>Two broad classes of authentication domain are defined in the OpenYOLO
  * specification : Android authentication domains, of form
- * {@code android://<signature>@<packageName>}, and Web authentication domains, of form
+ * {@code android://<fingerprint>@<packageName>}, and Web authentication domains, of form
  * {@code http(s)://host@port}. Formally, authentication domains are absolute hierarchical URIs
  * with no path, query or fragment. They must therefore always be of form
  * {@code scheme://authority}.
@@ -54,12 +57,43 @@ import java.security.NoSuchAlgorithmException;
 @SuppressLint("PackageManagerGetSignatures")
 public final class AuthenticationDomain implements Comparable<AuthenticationDomain> {
 
+    /**
+     * Indicates the use of SHA-256 as the fingerprint hash algorithm for an Android authentication
+     * domain.
+     */
+    public static final String SHA_256_FINGERPRINT = "sha256";
+
+    /**
+     * Indicates the use of SHA-512 as the fingerprint hash algorithm for an Android authentication
+     * domain.
+     */
+    public static final String SHA_512_FINGERPRINT = "sha512";
+
+    /**
+     * The separator character used between the fingerprint algorithm and the Base64 encoded
+     * fingerprint bytes in an Android authentication domain.
+     */
+    public static final String FINGERPRINT_ALGO_SEPARATOR = "~";
+
     private static final String TAG = "AuthenticationDomain";
 
+    private static final String DIGEST_SHA_256 = "SHA-256";
     private static final String DIGEST_SHA_512 = "SHA-512";
+
+    private static final Map<String, String> FINGERPRINT_ALGO_TO_DIGEST_TYPE_MAP;
+
+    static {
+        LinkedHashMap<String, String> digestMap = new LinkedHashMap<String, String>();
+        digestMap.put(SHA_256_FINGERPRINT, DIGEST_SHA_256);
+        digestMap.put(SHA_512_FINGERPRINT, DIGEST_SHA_512);
+
+        FINGERPRINT_ALGO_TO_DIGEST_TYPE_MAP = Collections.unmodifiableMap(digestMap);
+    }
+
     private static final String SCHEME_ANDROID = "android";
     private static final String SCHEME_HTTP = "http";
     private static final String SCHEME_HTTPS = "https";
+
 
     private final String mUriStr;
 
@@ -87,14 +121,28 @@ public final class AuthenticationDomain implements Comparable<AuthenticationDoma
 
     /**
      * Returns the {@link AuthenticationDomain} for the application installed on the current device
-     * associated with the given package name otherwise {@code null}.
+     * associated with the given package name, using the default SHA-512 fingerprint algorithm.
+     * If the package is not installed, {@code null} will be returned.
      */
     @Nullable
     public static AuthenticationDomain fromPackageName(
             @NonNull Context context,
             @NonNull String packageName) {
+        return fromPackageName(context, packageName, SHA_512_FINGERPRINT);
+    }
+
+    /**
+     * Returns the {@link AuthenticationDomain} for the application installed on the current device
+     * associated with the given package name, using the specified fingerprint algorithm. If the
+     * package is not installed, {@code null} will be returned.
+     */
+    public static AuthenticationDomain fromPackageName(
+            @NonNull Context context,
+            @NonNull String packageName,
+            @NonNull String fingerprintAlgorithm) {
         validate(context, notNullValue(), IllegalArgumentException.class);
         validate(packageName, notNullOrEmptyString(), IllegalArgumentException.class);
+        validate(fingerprintAlgorithm, notNullOrEmptyString(), IllegalArgumentException.class);
 
         PackageManager pm = context.getPackageManager();
         PackageInfo packageInfo;
@@ -112,15 +160,18 @@ public final class AuthenticationDomain implements Comparable<AuthenticationDoma
             return null;
         }
 
-        return createAndroidAuthDomain(packageName, packageInfo.signatures[0]);
+        return createAndroidAuthDomain(
+                packageName,
+                fingerprintAlgorithm,
+                generateFingerprint(packageInfo.signatures[0], fingerprintAlgorithm));
     }
 
     /**
-     * Creates an Android authentication domain (of form {@code android://SIGNATURE@PACKAGE}),
+     * Creates an Android authentication domain (of form {@code android://fingerprint@package}),
      * given the provided package name and signature.
      */
     @NonNull
-    static AuthenticationDomain createAndroidAuthDomain(
+    public static AuthenticationDomain createAndroidAuthDomain(
             @NonNull String packageName,
             @NonNull Signature signature) {
         validate(packageName, notNullOrEmptyString(), IllegalArgumentException.class);
@@ -129,9 +180,30 @@ public final class AuthenticationDomain implements Comparable<AuthenticationDoma
         return new AuthenticationDomain(
                 new Uri.Builder()
                         .scheme(SCHEME_ANDROID)
-                        .encodedAuthority(generateSignatureHash(signature) + "@" + packageName)
+                        .encodedAuthority(generateFingerprint(signature) + "@" + packageName)
                         .build()
                         .toString());
+    }
+
+    /**
+     * Creates an Android authentication domain (of form {@code android://algo~fingerprint@package})
+     * given the provided fingerprint algorithm, Base64 encoded fingerprint bytes, and package name.
+     */
+    @NonNull
+    public static AuthenticationDomain createAndroidAuthDomain(
+            @NonNull String packageName,
+            @NonNull String fingerprintAlgorithm,
+            @NonNull String fingerprintBase64) {
+        return new AuthenticationDomain(
+                new Uri.Builder()
+                .scheme(SCHEME_ANDROID)
+                .encodedAuthority(fingerprintAlgorithm
+                        + FINGERPRINT_ALGO_SEPARATOR
+                        + fingerprintBase64
+                        + "@"
+                        + packageName)
+                .build()
+                .toString());
     }
 
     /**
@@ -167,14 +239,27 @@ public final class AuthenticationDomain implements Comparable<AuthenticationDoma
     }
 
     @NonNull
-    static String generateSignatureHash(@NonNull Signature signature) {
+    static String generateFingerprint(@NonNull Signature signature) {
+        return generateFingerprint(signature, SHA_512_FINGERPRINT);
+    }
+
+    @NonNull
+    static String generateFingerprint(
+            @NonNull Signature signature,
+            @NonNull String fingerprintAlgorithm) {
+        String digestName = FINGERPRINT_ALGO_TO_DIGEST_TYPE_MAP.get(fingerprintAlgorithm);
+        if (digestName == null) {
+            throw new IllegalArgumentException("Unknown fingerprint algorithm: "
+                    + fingerprintAlgorithm);
+        }
+
         try {
-            MessageDigest digest = MessageDigest.getInstance(DIGEST_SHA_512);
+            MessageDigest digest = MessageDigest.getInstance(digestName);
             byte[] hashBytes = digest.digest(signature.toByteArray());
-            return Base64.encodeToString(hashBytes, Base64.URL_SAFE).replace("\n", "");
+            return Base64.encodeToString(hashBytes, Base64.URL_SAFE | Base64.NO_WRAP);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(
-                    "Platform does not support" + DIGEST_SHA_512 + " hashing");
+                    "Platform does not support" + digestName + " hashing");
         }
     }
 
@@ -230,6 +315,42 @@ public final class AuthenticationDomain implements Comparable<AuthenticationDoma
         }
 
         return getParsedUri().getUserInfo();
+    }
+
+    /**
+     * Determines the fingerprint algorithm used for an Android authentication domain. If the
+     * authentication domain does not represent an Android application, an
+     * {@link IllegalStateException} will be thrown.
+     */
+    public String getAndroidFingerprintAlgorithm() {
+        String fingerprint = getAndroidFingerprint();
+
+        int algoSeparatorPosition = fingerprint.indexOf('~');
+        if (algoSeparatorPosition == -1) {
+            return SHA_512_FINGERPRINT;
+        }
+
+        return fingerprint.substring(0, algoSeparatorPosition);
+    }
+
+    /**
+     * Returns the bytes of the fingerprint for an Android authentication domain. Use
+     * {@link #getAndroidFingerprintAlgorithm()} to determine the fingerprint algorithm used. If
+     * the authentication domain does not represent an Android application, an
+     * {@link IllegalStateException} will be thrown.
+     */
+    public byte[] getAndroidFingerprintBytes() {
+        String fingerprint = getAndroidFingerprint();
+        String fingerprintBytes;
+
+        int algoSeparatorPosition = fingerprint.indexOf('~');
+        if (algoSeparatorPosition == -1) {
+            fingerprintBytes = fingerprint;
+        } else {
+            fingerprintBytes = fingerprint.substring(algoSeparatorPosition + 1);
+        }
+
+        return Base64.decode(fingerprintBytes, Base64.URL_SAFE | Base64.NO_WRAP);
     }
 
     /**

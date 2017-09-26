@@ -246,11 +246,10 @@ public final class TestConstants {
     public static final class ValidApplication {
         public static final String PACKAGE_NAME = "com.example.app";
         private static final String FINGERPRINT =
-                "2qKVvu1OLulMJAFbVq9ia08h759E8rPUD8QckJAKa_G0hnxDxXzaVNG2_Uhps_I8"
+                "sha512~2qKVvu1OLulMJAFbVq9ia08h759E8rPUD8QckJAKa_G0hnxDxXzaVNG2_Uhps_I8"
                         + "7V4Lo8BdCxaA307H0HYkAw==";
         private static byte[] SIGNATURE_BYTES = new byte[]
                 { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
-
 
         public static final class AuthDomain {
             private static final String AUTHENTICATION_DOMAIN_STRING =

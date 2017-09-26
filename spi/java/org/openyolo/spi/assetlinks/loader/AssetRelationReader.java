@@ -31,7 +31,7 @@ import org.openyolo.protocol.AuthenticationDomain;
  */
 public class AssetRelationReader {
 
-    private static final String TAG = "CredentialRelationRead";
+    private static final String TAG = "AssetRelationReader";
 
     private static final int EXPECTED_SHA_256_FINGERPRINT_LENGTH = 95;
 

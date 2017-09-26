@@ -105,6 +105,14 @@ public class GoogleDigitalAssetLinkLoader implements DigitalAssetLinkLoader {
             queryUriBuilder.appendQueryParameter(
                     "source.androidApp.packageName",
                     domain.getAndroidPackageName());
+
+            if (!AuthenticationDomain.SHA_256_FINGERPRINT
+                    .equals(domain.getAndroidFingerprintAlgorithm())) {
+                throw new IllegalStateException(
+                        "Android authentication domains must use SHA-256 for the Google Digital"
+                                + "Asset links retrieval API");
+            }
+
             queryUriBuilder.appendQueryParameter(
                     "source.androidApp.certificate.sha256Fingerprint",
                     FingerprintConverter.base64ToHex(domain.getAndroidFingerprint()));
@@ -146,11 +154,12 @@ public class GoogleDigitalAssetLinkLoader implements DigitalAssetLinkLoader {
     private AuthenticationDomain extractAndroidTarget(JSONObject target) throws JSONException {
         JSONObject androidTarget = target.getJSONObject("androidApp");
         String packageName = androidTarget.getString("packageName");
-        String sha256HexSig = androidTarget.getJSONObject("certificate")
+        String sha256Hex = androidTarget.getJSONObject("certificate")
                 .getString("sha256Fingerprint");
 
-        String sha256Sig = "sha256-" + FingerprintConverter.hexToBase64(sha256HexSig);
-        return new AuthenticationDomain(
-                "android://" + sha256Sig + "@" + packageName);
+        return AuthenticationDomain.createAndroidAuthDomain(
+                packageName,
+                AuthenticationDomain.SHA_256_FINGERPRINT,
+                FingerprintConverter.hexToBase64(sha256Hex));
     }
 }

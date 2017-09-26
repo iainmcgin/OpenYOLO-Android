@@ -18,61 +18,45 @@ import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
+import android.support.annotation.NonNull;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
+import java.util.Collections;
 import java.util.Set;
 
 import org.json.JSONException;
 import org.openyolo.protocol.AuthenticationDomain;
 
 /**
- * Retrieves and interprets digital asset link relations directly from the specified authentication
- * domain.
+ * A digital asset link loader for android apps, which retrieves the set of relations directly from
+ * an installed app's metadata.
  */
-public class DirectDigitalAssetLinkLoader implements DigitalAssetLinkLoader {
+public class AndroidAppDigitalAssetLinkLoader implements DigitalAssetLinkLoader {
 
-    private static final String TAG = "DirectDalLoader";
-    private static final String ASSET_STATEMENTS = "asset_statements";
-    private static final String EMPTY_ASSET_STATEMENT_LIST = "[]";
+    private static final String ASSET_STATEMENTS_METADATA_KEY = "asset_statements";
 
-    private Context mApplicationContext;
+    private final Context mApplicationContext;
 
     /**
-     * Creates an asset link loader, using the provided context for Android app relation retrieval.
+     * Creates a digital asset link loader for installed android applications, using the provided
+     * context for package metadata retrieval.
      */
-    public DirectDigitalAssetLinkLoader(Context context) {
+    public AndroidAppDigitalAssetLinkLoader(@NonNull Context context) {
         mApplicationContext = context.getApplicationContext();
     }
 
     @Override
-    public Set<AuthenticationDomain> getRelations(
-            String relationType,
-            AuthenticationDomain domain)
+    public Set<AuthenticationDomain> getRelations(String relationType, AuthenticationDomain domain)
             throws IOException {
-
-        String assetLinksDeclaration;
-        if (domain.isWebAuthDomain()) {
-            assetLinksDeclaration = loadFromWeb(domain.toString());
-        } else {
-            checkAppFingerprint(domain);
-            assetLinksDeclaration = loadFromApp(domain.getAndroidPackageName());
+        if (!domain.isAndroidAuthDomain()) {
+            throw new IllegalArgumentException(
+                    "AndroidAppDigitalAssetLinkLoader only supports Android "
+                            + "authentication domains");
         }
 
-        try {
-            return AssetRelationReader.getRelations(assetLinksDeclaration, relationType);
-        } catch (JSONException ex) {
-            throw new IOException("Unable to parse asset links", ex);
-        }
-    }
+        checkAppFingerprint(domain);
 
-    private String loadFromWeb(String webDomain) throws IOException {
-        InputStream stream = new URL(webDomain).openStream();
-        return StreamReader.readAll(stream);
-    }
-
-    private String loadFromApp(String packageName) throws IOException {
+        String packageName = domain.getAndroidPackageName();
         ApplicationInfo applicationInfo;
         try {
             applicationInfo = mApplicationContext.getPackageManager()
@@ -84,8 +68,8 @@ public class DirectDigitalAssetLinkLoader implements DigitalAssetLinkLoader {
         }
 
         if (applicationInfo.metaData == null
-                || !applicationInfo.metaData.containsKey(ASSET_STATEMENTS)) {
-            return EMPTY_ASSET_STATEMENT_LIST;
+                || !applicationInfo.metaData.containsKey(ASSET_STATEMENTS_METADATA_KEY)) {
+            return Collections.emptySet();
         }
 
         Resources resources;
@@ -93,10 +77,17 @@ public class DirectDigitalAssetLinkLoader implements DigitalAssetLinkLoader {
             resources = mApplicationContext.getPackageManager()
                     .getResourcesForApplication(applicationInfo);
         } catch (PackageManager.NameNotFoundException e) {
-            return EMPTY_ASSET_STATEMENT_LIST;
+            return Collections.emptySet();
         }
 
-        return resources.getString(applicationInfo.metaData.getInt(ASSET_STATEMENTS));
+        String assetLinksDeclaration = resources.getString(
+                applicationInfo.metaData.getInt(ASSET_STATEMENTS_METADATA_KEY));
+
+        try {
+            return AssetRelationReader.getRelations(assetLinksDeclaration, relationType);
+        } catch (JSONException ex) {
+            throw new IOException("Unable to parse asset links", ex);
+        }
     }
 
     private void checkAppFingerprint(AuthenticationDomain androidApp) throws IOException {
@@ -104,6 +95,9 @@ public class DirectDigitalAssetLinkLoader implements DigitalAssetLinkLoader {
                 AuthenticationDomain.fromPackageName(
                         mApplicationContext,
                         androidApp.getAndroidPackageName());
+
+        // TODO: generate fingerprint for isntalled app using same fingerprint algorithm as provided
+        // in androidApp
         if (!androidApp.equals(appDomain)) {
             throw new IOException("Installed application does not match domain: " + androidApp);
         }

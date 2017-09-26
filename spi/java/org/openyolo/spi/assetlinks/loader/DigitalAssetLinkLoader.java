@@ -22,8 +22,8 @@ import org.openyolo.protocol.AuthenticationDomain;
 public interface DigitalAssetLinkLoader {
 
     /**
-     * Extracts a set of related authentication domains from the provided JSON, of the specified
-     * relation type.
+     * Determines the set of related authentication domains of the provided type, for the provided
+     * authentication domain.
      *
      * @throws IOException if the relations could not be determined.
      */

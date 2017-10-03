@@ -43,9 +43,9 @@ public class HintRetrieveRequestTest {
                 AuthenticationMethods.EMAIL,
                 AuthenticationMethods.FACEBOOK);
 
-        assertThat(request.getAuthenticationMethods().size()).isEqualTo(2);
-        assertThat(request.getAuthenticationMethods()).contains(AuthenticationMethods.EMAIL);
-        assertThat(request.getAuthenticationMethods()).contains(AuthenticationMethods.FACEBOOK);
+        assertThat(request.getAuthenticationMethods()).containsExactly(
+                AuthenticationMethods.EMAIL,
+                AuthenticationMethods.FACEBOOK);
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -58,19 +58,14 @@ public class HintRetrieveRequestTest {
         HintRetrieveRequest request = HintRetrieveRequest.fromAuthMethods(
                 ImmutableSet.of(AuthenticationMethods.EMAIL, AuthenticationMethods.FACEBOOK));
 
-        assertThat(request.getAuthenticationMethods().size()).isEqualTo(2);
-        assertThat(request.getAuthenticationMethods()).contains(AuthenticationMethods.EMAIL);
-        assertThat(request.getAuthenticationMethods()).contains(AuthenticationMethods.FACEBOOK);
+        assertThat(request.getAuthenticationMethods()).containsExactly(
+                AuthenticationMethods.EMAIL,
+                AuthenticationMethods.FACEBOOK);
     }
 
     @Test(expected=IllegalArgumentException.class)
     public void testFromAuthMethods_emptySet() {
-        HintRetrieveRequest request = HintRetrieveRequest.fromAuthMethods(
-                Collections.emptySet());
-
-        assertThat(request.getAuthenticationMethods().size()).isEqualTo(2);
-        assertThat(request.getAuthenticationMethods()).contains(AuthenticationMethods.EMAIL);
-        assertThat(request.getAuthenticationMethods()).contains(AuthenticationMethods.FACEBOOK);
+        HintRetrieveRequest.fromAuthMethods(Collections.emptySet());
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -103,7 +98,7 @@ public class HintRetrieveRequestTest {
                 .addTokenProvider(tokenProvider)
                 .build();
 
-        assertThat(request.getTokenProviders().containsKey(tokenProvider));
+        assertThat(request.getTokenProviders()).containsKey(tokenProvider);
         assertThat(request.getTokenProviders().get(tokenProvider))
                 .isEqualTo(TokenRequestInfo.DEFAULT);
     }

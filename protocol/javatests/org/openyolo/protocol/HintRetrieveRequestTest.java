@@ -18,7 +18,7 @@ import static org.assertj.core.api.Java6Assertions.assertThat;
 
 import android.os.Parcel;
 import com.google.common.collect.ImmutableSet;
-import edu.emory.mathcs.backport.java.util.Collections;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;

@@ -18,8 +18,14 @@
 package org.openyolo.protocol;
 
 import static org.assertj.core.api.Java6Assertions.assertThat;
+import static org.openyolo.protocol.TestConstants.ADDITIONAL_PROP_ANOTHER_KEY;
+import static org.openyolo.protocol.TestConstants.ADDITIONAL_PROP_STRING_VALUE;
+import static org.openyolo.protocol.TestConstants.ADDITIONAL_PROP_TEST_KEY;
+import static org.openyolo.protocol.TestConstants.ADDITIONAL_PROP_TWO_BYTE_VALUE;
+import static org.openyolo.protocol.TestConstants.ADDITIONAL_PROP_ZERO_BYTE_VALUE;
 
 import android.os.Parcel;
+import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
@@ -170,5 +176,89 @@ public final class CredentialSaveRequestTest {
                         .build();
 
         ValidProperties.assertEqualTo(request.getAdditionalProperties());
+    }
+
+    @Test
+    public void testBuilder_setAdditionalProperty() {
+        CredentialSaveRequest csr = new CredentialSaveRequest.Builder(
+                ValidRequest.CREDENTIAL)
+                .setAdditionalProperty(ADDITIONAL_PROP_TEST_KEY, ADDITIONAL_PROP_TWO_BYTE_VALUE)
+                .setAdditionalProperty(ADDITIONAL_PROP_ANOTHER_KEY, ADDITIONAL_PROP_ZERO_BYTE_VALUE)
+                .build();
+
+        Map<String, byte[]> additionalProps = csr.getAdditionalProperties();
+        assertThat(additionalProps.size()).isEqualTo(2);
+        assertThat(additionalProps.containsKey(ADDITIONAL_PROP_TEST_KEY));
+        assertThat(additionalProps.get(ADDITIONAL_PROP_TEST_KEY))
+                .isEqualTo(ADDITIONAL_PROP_TWO_BYTE_VALUE);
+        assertThat(additionalProps.containsKey(ADDITIONAL_PROP_ANOTHER_KEY));
+        assertThat(additionalProps.get(ADDITIONAL_PROP_ANOTHER_KEY))
+                .isEqualTo(ADDITIONAL_PROP_ZERO_BYTE_VALUE);
+    }
+
+    @Test
+    public void testBuilder_setAdditionalProperty_overwriteExistingValue() {
+        CredentialSaveRequest csr = new CredentialSaveRequest.Builder(
+                ValidRequest.CREDENTIAL)
+                .setAdditionalProperty(ADDITIONAL_PROP_TEST_KEY, ADDITIONAL_PROP_TWO_BYTE_VALUE)
+                .setAdditionalProperty(ADDITIONAL_PROP_TEST_KEY, ADDITIONAL_PROP_ZERO_BYTE_VALUE)
+                .build();
+
+        Map<String, byte[]> additionalProps = csr.getAdditionalProperties();
+        assertThat(additionalProps.size()).isEqualTo(1);
+        assertThat(additionalProps.containsKey(ADDITIONAL_PROP_TEST_KEY));
+        assertThat(additionalProps.get(ADDITIONAL_PROP_TEST_KEY))
+                .isEqualTo(ADDITIONAL_PROP_ZERO_BYTE_VALUE);
+    }
+
+    @Test
+    public void testBuilder_setAdditionalPropertyAsString() {
+        CredentialSaveRequest csr = new CredentialSaveRequest.Builder(
+                ValidRequest.CREDENTIAL)
+                .setAdditionalPropertyAsString(
+                        ADDITIONAL_PROP_TEST_KEY,
+                        ADDITIONAL_PROP_STRING_VALUE)
+                .build();
+
+        Map<String, byte[]> additionalProps = csr.getAdditionalProperties();
+        assertThat(additionalProps.size()).isEqualTo(1);
+        assertThat(additionalProps.containsKey(ADDITIONAL_PROP_TEST_KEY));
+        assertThat(additionalProps.get(ADDITIONAL_PROP_TEST_KEY))
+                .isEqualTo(AdditionalPropertiesHelper.encodeStringValue(
+                        ADDITIONAL_PROP_STRING_VALUE));
+    }
+
+    @Test
+    public void testGetAdditionalProperty() {
+        CredentialSaveRequest csr = new CredentialSaveRequest.Builder(
+                ValidRequest.CREDENTIAL)
+                .setAdditionalProperties(ImmutableMap.of(
+                        ADDITIONAL_PROP_TEST_KEY,
+                        ADDITIONAL_PROP_TWO_BYTE_VALUE))
+                .build();
+
+        assertThat(csr.getAdditionalProperty(ADDITIONAL_PROP_TEST_KEY))
+                .isEqualTo(ADDITIONAL_PROP_TWO_BYTE_VALUE);
+    }
+
+    @Test
+    public void testGetAdditionalProperty_withMissingKey() {
+        CredentialSaveRequest csr = new CredentialSaveRequest.Builder(
+                ValidRequest.CREDENTIAL)
+                .build();
+        assertThat(csr.getAdditionalProperty("missingKey")).isNull();
+    }
+
+    @Test
+    public void testGetAdditionalPropertyAsString() {
+        CredentialSaveRequest csr = new CredentialSaveRequest.Builder(
+                ValidRequest.CREDENTIAL)
+                .setAdditionalProperties(ImmutableMap.of(
+                        ADDITIONAL_PROP_TEST_KEY,
+                        AdditionalPropertiesHelper.encodeStringValue(ADDITIONAL_PROP_STRING_VALUE)))
+                .build();
+
+        assertThat(csr.getAdditionalPropertyAsString(ADDITIONAL_PROP_TEST_KEY))
+                .isEqualTo(ADDITIONAL_PROP_STRING_VALUE);
     }
 }

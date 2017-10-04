@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import org.openyolo.protocol.CredentialRetrieveRequest.Builder;
 import org.openyolo.protocol.internal.AdditionalPropertiesUtil;
 import org.openyolo.protocol.internal.ByteStringConverters;
 import org.openyolo.protocol.internal.ClientVersionUtil;
@@ -115,6 +116,31 @@ public final class CredentialSaveRequest implements Parcelable {
             ByteStringConverters.BYTE_STRING_TO_BYTE_ARRAY);
     }
 
+    /**
+     * Returns the additional, non-standard property identified by the specified key. If this
+     * additional property does not exist, then `null` is returned.
+     */
+    @Nullable
+    public byte[] getAdditionalProperty(String key) {
+        ByteString value = mAdditionalProperties.get(key);
+        if (value == null) {
+            return null;
+        }
+
+        return value.toByteArray();
+    }
+
+    /**
+     * Returns the additional, non-standard property identified by the specified key, where the
+     * value is assumed to be a UTF-8 encoded string. If this additional property does not exist,
+     * then `null` is returned.
+     */
+    @Nullable
+    public String getAdditionalPropertyAsString(String key) {
+        return AdditionalPropertiesHelper.decodeStringValue(
+                getAdditionalProperty(key));
+    }
+
     @Override
     public int describeContents() {
         return 0;
@@ -196,6 +222,31 @@ public final class CredentialSaveRequest implements Parcelable {
             mAdditionalProps =
                     AdditionalPropertiesUtil.validateAdditionalProperties(additionalParams);
             return this;
+        }
+
+        /**
+         * Specifies an additional, non-standard property to include in the credential.
+         */
+        @NonNull
+        public Builder setAdditionalProperty(@NonNull String key, @Nullable byte[] value) {
+            ByteString immutableValue;
+            if (value == null) {
+                immutableValue = null;
+            } else {
+                immutableValue = ByteString.copyFrom(value);
+            }
+
+            mAdditionalProps.put(key, immutableValue);
+            return this;
+        }
+
+        /**
+         * Specifies an additional, non-standard property with a string value to include in the
+         * credential.
+         */
+        @NonNull
+        public Builder setAdditionalPropertyAsString(@NonNull String key, @Nullable String value) {
+            return setAdditionalProperty(key, AdditionalPropertiesHelper.encodeStringValue(value));
         }
 
         /**

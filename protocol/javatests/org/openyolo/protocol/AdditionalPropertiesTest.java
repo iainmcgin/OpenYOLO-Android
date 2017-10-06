@@ -14,7 +14,8 @@
 
 package org.openyolo.protocol;
 
-import static org.assertj.core.api.Java6Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.openyolo.protocol.TestConstants.ADDITIONAL_PROP_ANOTHER_KEY;
 import static org.openyolo.protocol.TestConstants.ADDITIONAL_PROP_STRING_VALUE;
 import static org.openyolo.protocol.TestConstants.ADDITIONAL_PROP_TEST_KEY;
@@ -131,18 +132,18 @@ public class AdditionalPropertiesTest {
         assertThat(container.getAdditionalProperties()).isEmpty();
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testBuilder_setAdditionalProperties_nullKey() {
-        new HintRetrieveRequest.Builder(AuthenticationMethods.EMAIL)
-                .setAdditionalProperties(Maps.newHashMap(null, new byte[0]))
-                .build();
+        final Map<String, byte[]> mapWithNullKey = Maps.newHashMap(null, new byte[0]);
+        assertThatThrownBy(() -> mBuilder.setAdditionalProperties(mapWithNullKey))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testBuild_setAdditionalProperty_nullValue() {
-        new HintRetrieveRequest.Builder(AuthenticationMethods.EMAIL)
-                .setAdditionalProperties(Maps.newHashMap("a", null))
-                .build();
+        final Map<String, byte[]> mapWithNullValue = Maps.newHashMap("a", null);
+        assertThatThrownBy(() -> mBuilder.setAdditionalProperties(mapWithNullValue))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

@@ -18,12 +18,8 @@ package com.google.bbq;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.internal.verification.VerificationModeFactory.times;
 
-import android.content.Context;
 import android.content.Intent;
-import android.support.annotation.NonNull;
 import com.google.bbq.Protobufs.BroadcastQuery;
 import com.google.bbq.Protobufs.BroadcastQueryResponse;
 import com.google.protobuf.ByteString;
@@ -32,15 +28,10 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.mockito.internal.matchers.Null;
-import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
-import org.valid4j.errors.RequireViolation;
 
 import java.util.List;
 
@@ -54,7 +45,6 @@ public class QueryResponseSenderTest {
 
     private BroadcastQuery mQuery;
     private QueryResponseSender mResponseSender;
-    private Intent mIntent;
 
     @Before
     public void setUp() throws Exception {
@@ -104,6 +94,7 @@ public class QueryResponseSenderTest {
         assertThat(response.getResponseMessage()).isEqualTo(expectedResponseBytes);
     }
 
+    @SuppressWarnings("ConstantConditions")
     @Test
     public void sendResponse_nullQuery_nullReponse() throws Exception {
         assertThatThrownBy(() -> mResponseSender.sendResponse(null, null))

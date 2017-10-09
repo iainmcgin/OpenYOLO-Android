@@ -1,16 +1,18 @@
 # Migrating from the Google Smart Lock for Passwords API to OpenYOLO
 
+Google will continue to offer the Smart Lock for Passwords standalone API for
+the foreseeable future. In 2018, the Smart Lock for Passwords API will start
+automatically using the OpenYOLO protocol if other OpenYOLO providers are
+available on the device, however we encourage developers with the available
+resources to explicitly move to the OpenYOLO API, as this is where all future
+work and innovation will occur. The OpenYOLO API also offers other
+non-functional benefits, such as simpler code that is easier to test.
+
 This document describes how to migrate your current integration with the
 Google Smart Lock for Passwords to the OpenYOLO API. If your application does
 not currently utilize Smart Lock for Passwords, we recommend instead reading
 the main [README](../README.md), which contains a getting started guide and
 links to other resources.
-
-Google will continue to offer the Smart Lock for Passwords API for the
-foreseeable future. In 2018, the Smart Lock for Passwords API will start
-automatically using the OpenYOLO protocol, however we encourage developers to
-explicitly move to the OpenYOLO API, as this is where all future
-work and innovation will occur.
 
 OpenYOLO for Android is intended to be the open-standards based successor to
 the Google Smart Lock for Passwords API. OpenYOLO provides the same
@@ -56,6 +58,7 @@ With Smart Lock for Passwords, a hint request for an email, phone number or
 Google Sign-in based account would be constructed and dispatched as follows:
 
 ```java
+// deprecated: this is the old way of doing things
 void sendSmartLockHintRequest() {
   PendingIntent hintPickerIntent =
       Auth.CredentialsApi.getHintPickerIntent(
@@ -67,7 +70,6 @@ void sendSmartLockHintRequest() {
               .setIdTokenRequested(true)
               .setServerClientId(MY_GOOGLE_CLIENT_ID)
               .setIdTokenNonce(“nonceValue”)
-              .set
               .build());
 
   startIntentSenderForResult(
@@ -86,7 +88,6 @@ where the initialization can be fully synchronous, and the code changes to the
 following:
 
 ```java
-
 private mCredentialClient =
     CredentialClient.getApplicationBoundInstance(this);
 
@@ -121,9 +122,7 @@ The key differences to note are:
   methods”, with email auth, phone auth and federated authentication methods
   all treated in a consistent manner.
 
-- A plain `Intent` is used instead of a `PendingIntent` - we have found this to
-  be less confusing for developers, and the additional functionality provided by
-  PendingIntent proved to be unnecessary.
+- A plain `Intent` is used instead of a `PendingIntent`.
 
 One may also notice the new `setTokenProviders` method - in an effort to support
 acquiring ID tokens from additional providers, clients are now encouraged to
@@ -142,6 +141,7 @@ different.
 With Smart Lock for Passwords:
 
 ```java
+// deprecated: this is the old way of doing things
 @Override protected void onActivityResult(
     int requestCode, int resultCode, Intent data) {
 
@@ -168,54 +168,44 @@ protected void onActivityResult(
     HintRetrieveResult result =
         mCredentialClient.getHintRetrieveResult(data);
 
-    if (result.getResultCode() !=
-        HintRetrieveResult.CODE_HINT_SELECTED) {
+    if (result.isSuccessful()) {
+      // condition is equivalent to:
+      // result.getResultCode() == HintRetrieveResult.CODE_HINT_SELECTED
+      Hint hint = result.getHint();
+      processOpenYoloHint(hint);
+    } else {
       authenticateManually();
       return;
     }
-
-    Hint hint = result.getHint();
-    processOpenYoloHint(hint);
   }
 }
 ```
 
-With OpenYOLO, the `resultCode` value will always be equal to the value returned
-by `result.getResultCode()`, so either can be used. The standard result codes
-are  all defined as constants on the `HintRetrieveResult` class. The result
-codes in OpenYOLO are more detailed than those returned by Smart Lock for
-Passwords, providing more information particularly in the cases where a hint is
-not returned:
+The standard result codes for hint retrieval are all defined as constants on
+the `HintRetrieveResult` class. The result codes in OpenYOLO are more detailed
+than those returned by Smart Lock for Passwords, providing more information
+particularly in the cases where a hint is not returned:
 
-|----------------------------------|-------------------------------------------|
-| *OpenYOLO hint result code*      | *Description*                             |
-|----------------------------------|-------------------------------------------|
-| `CODE_HINT_SELECTED`             | The user selected a hint, which can be    |
-|                                  | retrieved by calling the `getHint()`      |
-|                                  | method.                                   |
-|----------------------------------|-------------------------------------------|
-| `CODE_BAD_REQUEST`               | The request was malformed in some way.    |
-|                                  | `getHint()` method will return null.      |
-|----------------------------------|-------------------------------------------|
-| `CODE_NO_HINTS_AVAILABLE`        | There are no hints available in the       |
-|                                  | user’s credential manager that match the  |
-|                                  | request type. The getHint method will     |
-|                                  | return null.                              |
-|----------------------------------|-------------------------------------------|
-| `CODE_USER_REQUESTS_MANUAL_AUTH` | The user has indicated via their          |
-|                                  | credential manager that they wish to      |
-|                                  | manually authenticate. The getHint method |
-|                                  | will return null.                         |
-|----------------------------------|-------------------------------------------|
-| `CODE_USER_CANCELED`             | The user canceled the hint retrieval      |
-|                                  | flow, such as by pressing the back button |
-|                                  | or tapping outside of a selection dialog. |
-|                                  | The getHint method will return null.      |
-|----------------------------------|-------------------------------------------|
-| `CODE_UNKNOWN`                   | The credential provider failed to handle  |
-|                                  | the hint request. The getHint method will |
-|                                  | return null.                              |
-|----------------------------------|-------------------------------------------|
+- `CODE_HINT_SELECTED`: The user selected a hint, which can be retrieved by
+  calling the `getHint()` method.
+
+- `CODE_BAD_REQUEST`: The request was malformed in some way. The `getHint()`
+  method will return `null`.
+
+- `CODE_NO_HINTS_AVAILABLE`: There are no hints available in the user’s
+  credential manager that match the request type. The `getHint()` method will
+  return `null`.
+
+- `CODE_USER_REQUESTS_MANUAL_AUTH`: The user has indicated via their credential
+  manager that they wish to manually authenticate. The `getHint()` method will
+  return `null`.
+
+- `CODE_USER_CANCELED`: The user canceled the hint retrieval flow, such as by
+  pressing the back button or tapping outside of a selection dialog. The
+  `getHint()` method will return `null`.
+
+- `CODE_UNKNOWN`: The credential provider failed to handle the hint request.
+  The `getHint()` method will return `null`.
 
 ### Processing a returned hint
 
@@ -232,6 +222,7 @@ optionally provided as a parameter on the HintRequest.
 In Smart Lock for Passwords, a hint would be processed as follows:
 
 ```java
+// deprecated: this is the old way of doing things
 void processSmartLockCredentialAsHint(Credential credential) {
   if (credential.getAccountType() == null) {
     // this is not a federated account. It is not easy to distinguish
@@ -311,46 +302,18 @@ The notable changes here are that:
 The properties available on Smart Lock's `Credential` type align to the
 properties on OpenYOLO's `Hint` type as follows:
 
-|------------------------|---------------------------|-------------------------|
 | *Credential method*    | *Hint method*             | *Notes*                 |
 |------------------------|---------------------------|-------------------------|
 | getId()                | getIdentifier()           |                         |
-|------------------------|---------------------------|-------------------------|
-| getAccountType()       | getAuthenticationMethod() | Both are URI-based, but |
-|                        |                           | OpenYOLO defines URIs   |
-|                        |                           | for email, phone number |
-|                        |                           | and username based auth |
-|                        |                           | in addition to the same |
-|                        |                           | semantics for federated |
-|                        |                           | credentials.            |
-|------------------------|---------------------------|-------------------------|
+| getAccountType()       | getAuthenticationMethod() | Both are URI-based, but OpenYOLO defines URIs for email, phone number and username based auth in addition to the same semantics for federated credentials. |
 | getName()              | getDisplayName()          |                         |
-|------------------------|---------------------------|-------------------------|
 | getProfilePictureUri() | getDisplayPicture()       |                         |
-|------------------------|---------------------------|-------------------------|
 | getIdTokens()          | getIdToken()              |                         |
-|------------------------|------------------------|----------------------------|
-| getGeneratedPassword() | getGeneratedPassword() | This was not a fully       |
-|                        |                        | implemented feature in     |
-|                        |                        | Smart Lock for Passwords,  |
-|                        |                        | but is in OpenYOLO.        |
-|------------------------|------|----------------------------------------------|
-| getFamilyName()        | N/A  | Not defined in the OpenYOLO specification,   |
-|                        |      | as this assumes too much culture-specific    |
-|                        |      | structure to names.                          |
-|------------------------|------|--------------------------------------------- |
-| getGivenName()         | N/A  | Not defined in the OpenYOLO specification,   |
-|                        |      | for the same reasons as for `getFamilyName`. |
-|------------------------|------|----------------------------------------------|
-| getPassword()          | N/A  | Not applicable to OpenYOLO hints, which do   |
-|                        |      | not conflate existing and generated          |
-|                        |      | credentials in this way. See                 |
-|                        |      | `getGeneratedPassword`.                      |
-|-----|---------------------------|--------------------------------------------|
-| N/A | getAdditionalProperties() | OpenYOLO offers extensibility for Hints    |
-|     |                           | via a general map of strings to byte       |
-|     |                           | arrays.                                    |
-|-----|---------------------------|--------------------------------------------|
+| getGeneratedPassword() | getGeneratedPassword()    | This was not a fully implemented feature in Smart Lock for Passwords, but it is in OpenYOLO; a password will be randomly generated by the credential provider that conforms to the password specification provided in the request. |
+| getFamilyName()        | N/A  | Not defined in the OpenYOLO specification, as this assumes too much culture-specific structure to names. |
+| getGivenName()         | N/A  | Not defined in the OpenYOLO specification, for the same reasons as for `getFamilyName`. |
+| getPassword()          | N/A  | Not applicable to OpenYOLO hints, which do not conflate existing and generated credentials in this way. See `getGeneratedPassword`. |
+| N/A | getAdditionalProperties() | OpenYOLO offers extensibility for Hints via a general map of strings to byte arrays. |
 
 ## Existing accounts
 
@@ -366,14 +329,14 @@ two stages:
 
 1. A credential request is constructed and dispatched, with the initial
    response delivered via a callback. The callback will either directly contain
-   the credential (automatic sign-in), provide an Intent to be invoked
+   the credential (automatic sign-in), provide an `Intent` to be invoked
    (user consent required), or return nothing (no credentials available).
-2. If an intent is provided, this must be invoked and the result captured in
+2. If an `Intent` is provided, this must be invoked and the result captured in
    `onActivityResult`.
 
 APIs which rely on multiple asynchronous steps, where the responses are
 delivered through different mechanisms, are inherently hard to understand. For
-OpenYOLO, this process has been simplified such that an Intent is directly
+OpenYOLO, this process has been simplified such that an `Intent` is directly
 created and used for the request, and all processing can be handled via
 `onActivityResult`.
 
@@ -382,6 +345,7 @@ app that supports password login, ID token auth for Google accounts, and
 Facebook Sign-in would look like:
 
 ```java
+// deprecated: this is the old way of doing things
 void sendSmartLockRetrieveRequest() {
   CredentialRequest cr = new CredentialRequest.Builder()
       .setPasswordLoginSupported(true)
@@ -457,7 +421,12 @@ void sendOpenYoloRetrieveRequest() {
   super.onActivityResult(requestCode, resultCode, data);
 
   if (requestCode == RC_RETRIEVE) {
-    if (resultCode == CredentialRetrieveResult.CODE_CREDENTIAL_SELECTED) {
+    CredentialRetrieveResult result =
+        mCredentialClient.getCredentialRetrieveResult(data);
+    if (result.isSuccessful()) {
+      // condition is equivalent to:
+      // result.getResultCode() ==
+      //     CredentialRetrieveResult.CODE_CREDENTIAL_SELECTED
       signInWithOpenYoloCredential(result.getCredential());
     } else {
       // no credential available; further information can be found if necessary
@@ -482,6 +451,7 @@ existing credentials through different types.
 A credential from Smart Lock for Passwords would be consumed as follows:
 
 ```java
+// deprecated: this is the old way of doing things
 void signInWithSmartLockCredential(Credential credential) {
   if (credential.getIdTokens().size() > 0) {
     // an ID token was returned, which should be used as the secure alternative
@@ -535,43 +505,18 @@ void signInWithOpenYoloCredential(Credential credential) {
 As can be seen, the code is structurally very similar. The properties on the
 Smart Lock credential type map to the OpenYOLO credential type as follows:
 
-|--------------------------------|------------------------------|--------------|
 | *Smart Lock Credential method* | *OpenYOLO Credential method* | *Notes*      |
-|--------------------------------|------------------------------|--------------|
+|------------------------|---------------------------|-------------------------|
 | getId()                        | getIdentifier()              |              |
-|--------------------------------|------------------------------|--------------|
-| getAccountType()               | getAuthenticationMethod()    | Both are     |
-|                                |     | URI-based, but OpenYOLO does not      |
-|                                |     | leave password auth as an implicit    |
-|                                |     | "other option"; all OpenYOLO          |
-|                                |     | credentials must have a defined       |
-|                                |     | authentication method, which makes    |
-|                                |     | processing the credentials easier.    |
-|------------------------|---------------------------|-------------------------|
-| getPassword()          | getPassword()             |                         |
-|------------------------|---------------------------|-------------------------|
-| getName()              | getDisplayName()          |                         |
-|------------------------|---------------------------|-------------------------|
-| getProfilePictureUri() | getDisplayPicture()       |                         |
-|------------------------|---------------------------|-------------------------|
-| getIdTokens()          | getIdToken()              |                         |
-|------------------------|---------------------------|-------------------------|
-| getGeneratedPassword() | N/A  | As OpenYOLO credentials are specific to the  |
-|                        |      | existing account case, generated passwords   |
-|                        |      | are not applicable.                          |
-|------------------------|------|----------------------------------------------|
-| getFamilyName()        | N/A  | Not defined in the OpenYOLO specification,   |
-|                        |      | as this assumes too much culture-specific    |
-|                        |      | structure to names.                          |
-|------------------------|------|--------------------------------------------- |
-| getGivenName()         | N/A  | Not defined in the OpenYOLO specification,   |
-|                        |      | for the same reasons as for `getFamilyName`. |
-|-----|---------------------------|--------------------------------------------|
-| N/A | getAdditionalProperties() | OpenYOLO offers extensibility for Hints    |
-|     |                           | via a general map of strings to byte       |
-|     |                           | arrays.                                    |
-|-----|---------------------------|--------------------------------------------|
-
+| getAccountType()               | getAuthenticationMethod()    | Both are URI-based, but OpenYOLO does not leave password auth as an implicit "other option"; all OpenYOLO credentials must have a defined authentication method, which makes processing the credentials easier. |
+| getPassword()          | getPassword()                        |              |
+| getName()              | getDisplayName()                     |              |
+| getProfilePictureUri() | getDisplayPicture()                  |              |
+| getIdTokens()          | getIdToken()                         |              |
+| getGeneratedPassword() | N/A                                  | As OpenYOLO credentials are specific to the existing account case, generated passwords are not applicable. |
+| getFamilyName()        | N/A                                  | Not defined in the OpenYOLO specification, as this assumes too much culture-specific structure to names. |
+| getGivenName()         | N/A                                  | Not defined in the OpenYOLO specification, for the same reasons as for `getFamilyName`. |
+| N/A                    | getAdditionalProperties()            | OpenYOLO offers extensibility for Credentials via a general map of strings to byte arrays. |
 
 ## Saving Credentials
 
@@ -584,16 +529,17 @@ process similar to calling `retrieve()`:
    indicating whether the save succeeded, user consent is required to save
    the credential (a `PendingIntent` is returned), or the save was rejected.
 
-2. If an Intent is returned, the developer must invoke this `PendingIntent` in
+2. If an `Intent` is returned, the developer must invoke this `PendingIntent` in
    order to prompt the user to save the credential. The result of this is
    indicated via `onActivityResult()`.
 
-To simplify the API in OpenYOLO, an Intent is directly created and used to
+To simplify the API in OpenYOLO, an `Intent` is directly created and used to
 save the credential.
 
 In Smart Lock for Passwords, a credential would be saved as follows:
 
 ```java
+// deprecated: this is the old way of doing things
 void saveSmartLockCredential(Credential credential) {
   Auth.CredentialsApi.save(mGoogleApiClient, credential)
       .setResultCallback(this::handleSmartLockSaveResult);
@@ -640,9 +586,11 @@ void saveOpenYoloCredential(Credential credential) {
 @Override protected void onActivityResult(
     int requestCode, int resultCode, Intent data) {
   if (requestCode == RC_SAVE) {
-    if (resultCode == CredentialSaveResult.CODE_SAVED) {
-      // credential saved
-      // ...
+    CredentialSaveResult result =
+           mCredentialClient.getCredentialSaveResult(data);
+    if (result.isSuccessful()) {
+      // credential was saved. condition is equivalent to:
+      // resultCode == CredentialSaveResult.CODE_SAVED
     } else {
       // credential not saved. OpenYOLO distinguishes the failure cases via
       // additional result codes defined in CredentialSaveResult. Two
@@ -685,6 +633,7 @@ This is prevented in Smart Lock for Passwords by invoking the
 `disableAutoSignIn` method:
 
 ```java
+// deprecated: this is the old way of doing things
 void signOut() {
   Auth.CredentialsApi.disableAutoSignIn(mGoogleApiClient);
   discardAuthToken();
@@ -736,6 +685,7 @@ Smart Lock for Passwords follows the same two-stage pattern as retrieve and
 save for this functionality, and looks like the following:
 
 ```java
+// deprecated: this is the old way of doing things
 void deleteSmartLockCredential(Credential credential) {
   Auth.CredentialsApi.delete(mGoogleApiClient, credential)
       .setResultCallback(this::handleSmartLockDeleteResult);
@@ -768,7 +718,7 @@ void handleSmartLockDeleteResult(Status status) {
 }
 ```
 
-In OpenYOLO, an Intent is used, simplifying the code to the following:
+In OpenYOLO, an `Intent` is used, simplifying the code to the following:
 
 ```java
 void deleteOpenYoloCredential(Credential credential) {
@@ -780,8 +730,11 @@ void deleteOpenYoloCredential(Credential credential) {
     int requestCode, int resultCode, Intent data) {
   super.onActivityResult(requestCode, resultCode, data);
   if (requestCode == RC_DELETE) {
-    if (resultCode == CredentialDeleteResult.CODE_DELETED) {
-      // credential deleted
+    CredentialDeleteResult result =
+        mCredentialClient.getCredentialDeleteResult();
+    if (result.isSuccessful()) {
+      // credential deleted. Condition is equivalent to:
+      // resultCode == CredentialDeleteResult.CODE_DELETED
     } else {
       // credential not deleted. OpenYOLO distinguishes the reasons that a
       // credential has not been deleted via the additional status codes defined

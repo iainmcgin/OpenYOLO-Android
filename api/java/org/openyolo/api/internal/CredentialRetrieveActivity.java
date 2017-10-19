@@ -19,8 +19,8 @@ import static org.openyolo.protocol.ProtocolConstants.CREDENTIAL_DATA_TYPE;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.os.BadParcelableException;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
 import android.view.WindowManager.LayoutParams;
@@ -36,7 +36,7 @@ import org.openyolo.protocol.CredentialRetrieveRequest;
 import org.openyolo.protocol.CredentialRetrieveResult;
 import org.openyolo.protocol.Protobufs;
 import org.openyolo.protocol.Protobufs.CredentialRetrieveBbqResponse;
-import org.openyolo.protocol.internal.IntentUtil;
+import org.openyolo.protocol.ProtocolConstants;
 
 /**
  * An invisible Activity that forwards a given {@link CredentialRetrieveRequest} based on the
@@ -79,7 +79,7 @@ public final class CredentialRetrieveActivity extends Activity {
                 .queryFor(
                         CREDENTIAL_DATA_TYPE,
                         request.toProtocolBuffer(),
-                        new CredentialRetrieveQueryCallback());
+                        new CredentialRetrieveQueryCallback(request));
     }
 
     @Override
@@ -90,6 +90,13 @@ public final class CredentialRetrieveActivity extends Activity {
 
 
     private class CredentialRetrieveQueryCallback implements QueryCallback {
+
+        private CredentialRetrieveRequest mRetrieveRequest;
+
+        CredentialRetrieveQueryCallback(@NonNull CredentialRetrieveRequest retrieveRequest) {
+            mRetrieveRequest = retrieveRequest;
+        }
+
         @Override
         public void onResponse(long queryId, List<QueryResponse> queryResponses) {
             ArrayList<Intent> retrieveIntents = new ArrayList<>();
@@ -106,23 +113,27 @@ public final class CredentialRetrieveActivity extends Activity {
 
                 protoResponses.put(queryResponse.responderPackage, response);
 
-                if (response.getRetrieveIntent().isEmpty()) {
+
+                // a provider indicates that it has credentials via the credentials_available field
+                // on the response proto. Prior 0.3.0, the provider would directly return an intent.
+                // For backwards compatibility this is currently inspected as a fallback for the
+                // absence of the credentials_available field, but the Intent itself is no longer
+                // used.
+                // TODO: remove backwards compatibility with retrieve_intent after 0.3.0
+                if (!response.getCredentialsAvailable()
+                        && !response.getRetrieveIntent().isEmpty()) {
                     continue;
                 }
 
-                Intent retrieveIntent;
-                try {
-                    retrieveIntent =
-                            IntentUtil.fromBytes(response.getRetrieveIntent().toByteArray());
-                } catch (BadParcelableException ex) {
-                    Log.w(LOG_TAG, "Failed to parse intent from bytes");
-                    continue;
-                }
+                Intent retrieveIntent = new Intent(ProtocolConstants.RETRIEVE_CREDENTIAL_ACTION);
+                retrieveIntent.setPackage(queryResponse.responderPackage);
+                retrieveIntent.putExtra(
+                        ProtocolConstants.EXTRA_RETRIEVE_REQUEST,
+                        mRetrieveRequest.toProtocolBuffer().toByteArray());
 
-                if (!queryResponse.responderPackage.equals(
-                        retrieveIntent.getComponent().getPackageName())) {
-                    Log.w(LOG_TAG, "Package mismatch between provider and retrieve intent");
-                    continue;
+                if (!response.getPreloadedData().isEmpty()) {
+                    retrieveIntent.putExtra(ProtocolConstants.EXTRA_RETRIEVE_PRELOADED_DATA,
+                            response.getPreloadedData().toByteArray());
                 }
 
                 retrieveIntents.add(retrieveIntent);

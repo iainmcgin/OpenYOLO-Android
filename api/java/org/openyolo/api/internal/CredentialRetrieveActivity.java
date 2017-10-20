@@ -29,14 +29,12 @@ import com.google.bbq.QueryCallback;
 import com.google.bbq.QueryResponse;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.openyolo.protocol.CredentialRetrieveRequest;
 import org.openyolo.protocol.CredentialRetrieveResult;
 import org.openyolo.protocol.Protobufs;
-import org.openyolo.protocol.Protobufs.CredentialRetrieveBbqResponse;
 import org.openyolo.protocol.ProtocolConstants;
+import org.openyolo.protocol.internal.IntentUtil;
 
 /**
  * An invisible Activity that forwards a given {@link CredentialRetrieveRequest} based on the
@@ -100,7 +98,6 @@ public final class CredentialRetrieveActivity extends Activity {
         @Override
         public void onResponse(long queryId, List<QueryResponse> queryResponses) {
             ArrayList<Intent> retrieveIntents = new ArrayList<>();
-            Map<String, CredentialRetrieveBbqResponse> protoResponses = new HashMap<>();
             for (QueryResponse queryResponse : queryResponses) {
                 Protobufs.CredentialRetrieveBbqResponse response;
                 try {
@@ -111,32 +108,37 @@ public final class CredentialRetrieveActivity extends Activity {
                     continue;
                 }
 
-                protoResponses.put(queryResponse.responderPackage, response);
-
-
                 // a provider indicates that it has credentials via the credentials_available field
                 // on the response proto. Prior 0.3.0, the provider would directly return an intent.
                 // For backwards compatibility this is currently inspected as a fallback for the
-                // absence of the credentials_available field, but the Intent itself is no longer
-                // used.
-                // TODO: remove backwards compatibility with retrieve_intent after 0.3.0
-                if (!response.getCredentialsAvailable()
-                        && !response.getRetrieveIntent().isEmpty()) {
-                    continue;
+                // absence of the credentials_available field.
+
+                if (response.getCredentialsAvailable()) {
+                    Intent retrieveIntent = new Intent(
+                            ProtocolConstants.RETRIEVE_CREDENTIAL_ACTION);
+                    retrieveIntent.setPackage(queryResponse.responderPackage);
+                    retrieveIntent.putExtra(
+                            ProtocolConstants.EXTRA_RETRIEVE_REQUEST,
+                            mRetrieveRequest.toProtocolBuffer().toByteArray());
+
+                    if (!response.getPreloadedData().isEmpty()) {
+                        retrieveIntent.putExtra(ProtocolConstants.EXTRA_RETRIEVE_PRELOADED_DATA,
+                                response.getPreloadedData().toByteArray());
+                    }
+
+                    retrieveIntents.add(retrieveIntent);
+                } else if (!response.getRetrieveIntent().isEmpty()) {
+                    // TODO: remove backwards compatibility with retrieve_intent after 0.3.0
+                    Intent retrieveIntent =
+                            IntentUtil.fromBytes(response.getRetrieveIntent().toByteArray());
+
+                    if (!queryResponse.responderPackage.equals(
+                            retrieveIntent.getComponent().getPackageName())) {
+                        Log.w(LOG_TAG, "Package mismatch between provider and retrieve intent");
+                    } else {
+                        retrieveIntents.add(retrieveIntent);
+                    }
                 }
-
-                Intent retrieveIntent = new Intent(ProtocolConstants.RETRIEVE_CREDENTIAL_ACTION);
-                retrieveIntent.setPackage(queryResponse.responderPackage);
-                retrieveIntent.putExtra(
-                        ProtocolConstants.EXTRA_RETRIEVE_REQUEST,
-                        mRetrieveRequest.toProtocolBuffer().toByteArray());
-
-                if (!response.getPreloadedData().isEmpty()) {
-                    retrieveIntent.putExtra(ProtocolConstants.EXTRA_RETRIEVE_PRELOADED_DATA,
-                            response.getPreloadedData().toByteArray());
-                }
-
-                retrieveIntents.add(retrieveIntent);
             }
 
             if (retrieveIntents.isEmpty()) {

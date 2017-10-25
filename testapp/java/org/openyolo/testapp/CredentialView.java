@@ -184,9 +184,9 @@ public final class CredentialView extends LinearLayout {
     @OnTextChanged(R.id.profile_picture_field)
     void loadProfilePicture() {
         String profilePictureUri = mProfilePictureField.getText().toString();
-
-        Object resourceLocation;
-        if (profilePictureUri.trim().isEmpty() || !Patterns.WEB_URL.matcher(profilePictureUri).matches()) {
+        
+        if (profilePictureUri.trim().isEmpty()
+                || !Patterns.WEB_URL.matcher(profilePictureUri).matches()) {
             mProfilePictureView.setImageDrawable(null);
         } else {
             GlideApp.with(getContext())

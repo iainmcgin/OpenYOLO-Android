@@ -31,6 +31,10 @@ import java.util.List;
  */
 public final class ProviderResolver {
 
+    private ProviderResolver() {
+        // not intended to be constructed
+    }
+
     /**
      * Creates an explicit Intent to invoke the specified action on the specified provider,
      * if the provider has a handler registered.
@@ -84,11 +88,12 @@ public final class ProviderResolver {
     public static List<ComponentName> findProviders(
             @NonNull Context applicationContext,
             @NonNull String action) {
-        Intent saveIntent = new Intent(action);
-        saveIntent.addCategory(OPENYOLO_CATEGORY);
+        Intent providerIntent = new Intent(action);
+        providerIntent.addCategory(OPENYOLO_CATEGORY);
 
         List<ResolveInfo> resolveInfos =
-                applicationContext.getPackageManager().queryIntentActivities(saveIntent, 0);
+                applicationContext.getPackageManager()
+                        .queryIntentActivities(providerIntent, 0);
 
         ArrayList<ComponentName> responders = new ArrayList<>();
         for (ResolveInfo info : resolveInfos) {
